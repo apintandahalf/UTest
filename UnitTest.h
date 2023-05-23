@@ -1,3 +1,32 @@
+/*
+A C++20 header only unit test library.
+MIT Licence.
+apintandahalf would apprecaiate attribution.
+
+Example use:
+
+#include <UnitTest.h>
+
+int times2(int x)
+{
+	return x * 2;
+}
+TEST(testtimes2)
+{
+	EXPECT_EQ(4, times2(2));
+	ASSERT_EQ(6, times2(3));
+}
+TEST(testtimes2Wrong)
+{
+	ASSERT_NE(7, times2(3));
+	EXPECT_NE(5, times2(2));
+}
+int main()
+{
+	return runAllTests();
+}
+*/
+
 #include <iostream>
 #include <source_location>
 #include <functional>

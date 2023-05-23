@@ -23,7 +23,7 @@ TEST(testtimes2Wrong)
 }
 int main()
 {
-	return runAllTests();
+	return UTest::runAllTests();
 }
 */
 
@@ -33,12 +33,6 @@ int main()
 #include <vector>
 
 
-namespace
-{
-int fails = 0;
-int tests_failed = 0;
-int tests_ran = 0;
-
 #define WRAP(a) \
 	do { a } while (false)
 
@@ -47,39 +41,28 @@ int tests_ran = 0;
 	std::cout << "Test failed: " << src.file_name() << "." << src.function_name() << "." << src.line() << ": " 
 
 #define EXPECT_EQ(a,b) \
-	WRAP (if (!((a) == (b))) { REPORT << #a << " == " #b << "\n"; fails += 1; } )
+	WRAP (if (!((a) == (b))) { REPORT << #a << " == " #b << "\n"; UTest::s_fails += 1; } )
 
 #define EXPECT_NE(a,b) \
-	WRAP (if ((a) == (b)) { REPORT << #a << " != " #b << "\n"; fails += 1; } )
+	WRAP (if ((a) == (b)) { REPORT << #a << " != " #b << "\n"; UTest::s_fails += 1; } )
 
 #define EXPECT_TRUE(a) \
-	WRAP (if (!(a)) { REPORT << "!" << #a "\n"; fails += 1; } )
+	WRAP (if (!(a)) { REPORT << "!" << #a "\n"; UTest::s_fails += 1; } )
 
 #define EXPECT_FALSE(a) \
-	WRAP (if (a) { REPORT << #a "\n"; fails += 1; } )
+	WRAP (if (a) { REPORT << #a "\n"; UTest::s_fails += 1; } )
 
 #define ASSERT_EQ(a,b) \
-	WRAP (if (!((a) == (b))) { REPORT << #a << " == " #b << "\n"; fails += 1; return; } )
+	WRAP (if (!((a) == (b))) { REPORT << #a << " == " #b << "\n"; UTest::s_fails += 1; return; } )
 
 #define ASSERT_NE(a,b) \
-	WRAP (if ((a) == (b)) { REPORT << #a << " != " #b << "\n"; fails += 1; return; } )
+	WRAP (if ((a) == (b)) { REPORT << #a << " != " #b << "\n"; UTest::s_fails += 1; return; } )
 
 #define ASSERT_TRUE(a) \
-	WRAP (if (!(a)) { REPORT << "!" << #a "\n"; fails += 1; return; } )
+	WRAP (if (!(a)) { REPORT << "!" << #a "\n"; UTest::s_fails += 1; return; } )
 
 #define ASSERT_FALSE(a) \
-	WRAP (if (a) { REPORT << #a "\n"; fails += 1; return; } )
-
-std::vector<std::function<void()>> fns;
-bool registerTestFn(std::function<void()> fn)
-{
-	fns.push_back(fn);
-	return true;
-}
-
-constexpr auto GREEN_TEXT_START = "\x1B[32m";
-constexpr auto RED_TEXT_START   = "\x1B[31m";
-constexpr auto COLOUR_TEXT_END  = "\033[0m\t\t";
+	WRAP (if (a) { REPORT << #a "\n"; UTest::s_fails += 1; return; } )
 
 #define TEST(TestCase) \
 	namespace {\
@@ -87,46 +70,56 @@ constexpr auto COLOUR_TEXT_END  = "\033[0m\t\t";
 	{ \
 		static void Test() \
 		{\
-		    ++tests_ran; \
-			const auto currentFails = fails; \
-			std::cout << GREEN_TEXT_START << "Testing " << #TestCase << COLOUR_TEXT_END << "\n"; \
+		    ++UTest::s_tests_ran; \
+			const auto currentFails = UTest::s_fails; \
+			std::cout << UTest::GREEN_TEXT_START << "Testing " << #TestCase << UTest::COLOUR_TEXT_END << "\n"; \
 			TestStruct##TestCase::TestBody(); \
-			if (currentFails < fails) \
+			if (currentFails < UTest::s_fails) \
 			{ \
-				++tests_failed; \
-				std::cout << RED_TEXT_START << "Tested " << #TestCase << COLOUR_TEXT_END << "\n"; \
+				++UTest::s_tests_failed; \
+				std::cout << UTest::RED_TEXT_START << "Tested " << #TestCase << UTest::COLOUR_TEXT_END << "\n"; \
 			} \
 			else \
 			{ \
-				std::cout << GREEN_TEXT_START << "Tested " << #TestCase << COLOUR_TEXT_END << "\n"; \
+				std::cout << UTest::GREEN_TEXT_START << "Tested " << #TestCase << UTest::COLOUR_TEXT_END << "\n"; \
 			} \
 		} \
 		static void TestBody(); \
 	};} \
-	static const auto sTestStruct##TestCase = registerTestFn(TestStruct##TestCase::Test); \
+	static const auto sTestStruct##TestCase = UTest::registerTestFn(TestStruct##TestCase::Test); \
 	void TestStruct##TestCase::TestBody()
 
-int runAllTests()
+struct UTest
 {
-	fails = 0;
-	tests_failed = 0;
-	tests_ran = 0;
+	static inline int s_fails = 0;
+	static inline int s_tests_failed = 0;
+	static inline int s_tests_ran = 0;
 
-	for (auto& fn : fns)
+	static constexpr auto GREEN_TEXT_START = "\x1B[32m";
+	static constexpr auto RED_TEXT_START = "\x1B[31m";
+	static constexpr auto COLOUR_TEXT_END = "\033[0m\t\t";
+	
+	static inline std::vector<std::function<void()>> tests;
+	static bool registerTestFn(std::function<void()> test)
 	{
-		fn();
+		tests.push_back(test);
+		return true;
 	}
 
-	if (fails)
+	static int runAllTests()
 	{
-		std::cout << RED_TEXT_START << "Ran " << tests_ran << " tests and " << tests_failed << " failed" << COLOUR_TEXT_END << "\n";
-	}
-	else
-	{
-		std::cout << GREEN_TEXT_START << "Ran " << tests_ran << " tests and none failed" << COLOUR_TEXT_END << "\n";
-	}
+		s_fails = 0;
+		s_tests_failed = 0;
+		s_tests_ran = 0;
 
-	return fails;
-}
+		for (auto& test : tests)
+			test();
 
-}
+		if (s_fails)
+			std::cout << RED_TEXT_START << "Ran " << s_tests_ran << " tests and " << s_tests_failed << " failed" << COLOUR_TEXT_END << "\n";
+		else
+			std::cout << GREEN_TEXT_START << "Ran " << s_tests_ran << " tests and none failed" << COLOUR_TEXT_END << "\n";
+
+		return s_fails;
+	}
+};
